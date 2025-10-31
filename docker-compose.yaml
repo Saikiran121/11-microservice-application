@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecomm-postgres
+    environment:
+      POSTGRES_DB: userservice_db
+      POSTGRES_USER: ecommuser
+      POSTGRES_PASSWORD: ecomm123
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecomm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommuser -d userservice_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service Application
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: ecomm-user-service
+    ports:
+      - "8082:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/userservice_db
+      - SPRING_DATASOURCE_USERNAME=ecommuser
+      - SPRING_DATASOURCE_PASSWORD=ecomm123
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecomm-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  ecomm-network:
+    driver: bridge
+
